@@ -1,0 +1,12 @@
+Server
+ssl:start().
+{ok,LSock}=ssl:listen(9999,[{certfile,"cert.pem"},{keyfile,"key.pem"},{reuseaddr,true}]).
+{ok, TLSTransportSocket} = ssl:transport_accept(LSock).
+
+{ok, Socket} = ssl:handshake(TLSTransportSocket).
+ssl:send(Socket, "foo").
+client
+ssl:start().
+{ok, Socket} = ssl:connect("localhost", 9999,  [], infinity).
+flush().
+
