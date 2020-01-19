@@ -1,7 +1,7 @@
 %% Author: uabjle
 %% Created: 10 dec 2012
 %% Description: TODO: Add description to application_org
--module(lib_service_app).
+-module(tcp_service_app).
 
 -behaviour(application).
 %% --------------------------------------------------------------------
@@ -45,7 +45,7 @@
 %% --------------------------------------------------------------------
 start(_Type, _StartArgs) ->
     Args=[],
-    {ok,Pid}= lib_service_sup:start_link(Args),
+    {ok,Pid}= tcp_service_sup:start_link(Args),
     {ok,Pid}.
 %% --------------------------------------------------------------------
 %% Func: stop/1

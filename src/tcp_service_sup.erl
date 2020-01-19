@@ -4,7 +4,7 @@
 %%%
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(lib_service_sup).
+-module(tcp_service_sup).
 
 -behaviour(supervisor).
 %% --------------------------------------------------------------------
@@ -51,7 +51,7 @@ start_link(Args)->
 %% --------------------------------------------------------------------
 init(Args) ->
     {ok,{{one_for_one,5,10}, 
-	 [?CHILD(lib_service,worker,Args)]}}.
+	 [?CHILD(tcp_service,worker,Args)]}}.
 
 %% ====================================================================
 %% Internal functions

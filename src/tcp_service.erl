@@ -1,10 +1,20 @@
 %%% -------------------------------------------------------------------
 %%% Author  : Joq Erlang
-%%% Description : test application calc
+%%% Description : 
+%%% tcp service client and server 
+%%% 
+%%% Key Datastructures
+%%% application:set_env(computer_service,[{pod_ip_address_port,{PodAddress,PodPort},
+%%%                                       {dns_port,DnsPort}])),
+%%% 
+%%% ListofTcpServers=[{NewIpAddr,NewPort,NewMode,ParServer}]
+%%%
+%%% 
+%%%    
 %%%  
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(lib_service). 
+-module(tcp_service). 
 
 -behaviour(gen_server).
 %% --------------------------------------------------------------------
@@ -17,38 +27,65 @@
 %% Key Data structures
 %% 
 %% --------------------------------------------------------------------
--record(state,{dns_address,tcp_servers}).
+-record(state,{tcp_servers}).
 
 
 %% --------------------------------------------------------------------
 %% Definitions 
 %% --------------------------------------------------------------------
 
+%% ====================================================================
+%% External functions
+%% ====================================================================
+%% start_tcp_server({IpAddr,Port},Mode)-> ok|{error,Err}
+%% start_tcp_server(IpAddr,Port,Mode)-> ok|{error,Err}
+%% stop_tcp_server({IpAddr,Port})-> ok|{error,Err}
+%% stop_tcp_server(IpAddr,Port)-> ok|{error,Err}
+%%
+%% connect(IpAddr,Port)->  {ok,Socket}|{error,Err}
+%% connect(IpAddr,Port,Timeout)->  {ok,Socket}|{error,Err}
+%% disconnect(Socket)-> ok
+%% cast(Socket,{M,F,A})-> ok |{error,Err}
+%% get_msg(Socket,Timeout)-> Msg|{error,Err}
+%% call({IpAddr,Port},{M,F,A})-> Msg|{error,Err}
+%%
+%%
+
 
 
 
 -export([start_tcp_server/2,start_tcp_server/3,
-	  stop_tcp_server/1,stop_tcp_server/2,
-	 ping/0,
-	 dns_address/0,
-	 myip/0
+	 stop_tcp_server/1,stop_tcp_server/2,
+	 connect/2,connect/3,disconnect/1,
+	 cast/2,get_msg/2,
+	 call/2,
+	 ping/0
 	]).
 
 -export([start/0,
-	 stop/0,
-	 heart_beat/1
+	 stop/0
 	]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3,handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 
-%% ====================================================================
-%% External functions
-%% ====================================================================
+%% Client functions
 
-%% Asynchrounus Signals
+connect(IpAddr,Port)->
+    tcp_client:connect(IpAddr,Port).
+connect(IpAddr,Port,Timeout)->
+    tcp_client:connect(IpAddr,Port,Timeout).
+disconnect(Socket)->
+    tcp_client:disconnect(Socket).
 
+cast(Socket,{M,F,A})->
+    tcp_client:cast(Socket,{M,F,A}).
+get_msg(Socket,Timeout)->
+    tcp_client:get_msg(Socket,Timeout).
+
+call({IpAddr,Port},{M,F,A})->
+    tcp_client:call({IpAddr,Port},{M,F,A}).
 
 
 %% Gen server functions
@@ -60,13 +97,8 @@ stop()-> gen_server:call(?MODULE, {stop},infinity).
 
 %%-----------------------------------------------------------------------
 
-dns_address()->
-    gen_server:call(?MODULE, {dns_address},infinity).
-
 ping()->
     gen_server:call(?MODULE, {ping},infinity).
-myip()->
-    gen_server:call(?MODULE, {myip},infinity).
 
 start_tcp_server({IpAddr,Port},Mode)->
     gen_server:call(?MODULE, {start_tcp_server,IpAddr,Port,Mode},infinity).
@@ -78,10 +110,6 @@ stop_tcp_server({IpAddr,Port})->
 stop_tcp_server(IpAddr,Port)->
     gen_server:call(?MODULE, {stop_tcp_server,IpAddr,Port},infinity).
 %%-----------------------------------------------------------------------
-
-heart_beat(Interval)->
-    gen_server:cast(?MODULE, {heart_beat,Interval}).
-
 
 %% ====================================================================
 %% Server functions
@@ -101,7 +129,7 @@ init([]) ->
    % spawn(fun()->do_dns_address(MyPid) end),
  %   spawn(fun()->h_beat(?HB_INTERVAL) end),
 	
-    {ok, #state{dns_address=[],tcp_servers=[]}}.   
+    {ok, #state{tcp_servers=[]}}.   
     
 %% --------------------------------------------------------------------
 %% Function: handle_call/3
@@ -113,17 +141,6 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (aterminate/2 is called)
 %% --------------------------------------------------------------------
-handle_call({dns_address}, _From, State) ->
-  %  Reply=case tcp_client:call(?DNS_ADDRESS,{dns_service,ping,[]}) of
-%	      {pong,_,_}->
-%		  ?DNS_ADDRESS;
-%	      Err->
-%		  {error,[eexists,dns_service,?DNS_ADDRESS,Err,?MODULE,?LINE]}
-%	  end,
-    Reply=?DNS_ADDRESS,
-    {reply, Reply,State};
-
-
 handle_call({ping}, _From, State) ->
     Reply={pong,node(),?MODULE},
     {reply, Reply,State};
@@ -171,7 +188,7 @@ handle_call({stop_tcp_server,StopIpAddr,StopPort}, _From, State) ->
 	      [{StopIpAddr,StopPort,Mode,Server}]->
 		  ok=tcp_server:terminate(Server),
 		  NewState=State#state{tcp_servers=lists:delete({StopIpAddr,StopPort,Mode,Server},TcpServers)},
-		  {ok,stopped}
+		  ok
 	  end,
     {reply, Reply, NewState};
 
@@ -215,12 +232,6 @@ handle_cast(Msg, State) ->
 %%          {noreply, State, Timeout} |
 %%          {stop, Reason, State}            (terminate/2 is called)
 %% --------------------------------------------------------------------
-handle_info({_MyPid,{dns_address,DnsAddress}}, State) ->
-    NewState=State#state{dns_address=DnsAddress},
-    timer:sleep(1*20*1000),
-   % MyPid=self(),
-   % spawn(fun()->do_dns_address(MyPid) end),
-    {noreply, NewState};
 handle_info(Info, State) ->
     io:format("unmatched match info ~p~n",[{?MODULE,?LINE,Info}]),
     {noreply, State}.
